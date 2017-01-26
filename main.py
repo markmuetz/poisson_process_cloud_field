@@ -1,3 +1,4 @@
+from __future__ import division
 import sys
 from collections import namedtuple
 
@@ -5,10 +6,10 @@ import numpy as np
 import scipy as sp
 import pylab as plt
 
-LX = 100
-LY = 100
+LX = 256000
+LY = 256000
 
-MIN_SEP = 10
+MIN_SEP = 25000
 
 
 class Cloud(object):
@@ -19,77 +20,97 @@ class Cloud(object):
         self.max_age = max_age
 
 
-def calc_min_dist(cloud, test_cloud):
-    min_dist = 1e99
+def calc_dists(cloud, test_cloud, use_min_dist=False):
+    dists = []
     for ii in [-1, 0, 1]:
         for jj in [-1, 0, 1]:
             x = test_cloud.x + ii * LX
             y = test_cloud.y + jj * LY
             dist = np.sqrt((cloud.x - x)**2 + (cloud.y - y)**2)
-            min_dist = min(dist, min_dist)
-    return min_dist
+            dists.append(dist)
+    return dists
 
-def calc_cloud_stats(clouds, use_min_dist=True):
+
+def calc_cloud_stats(clouds):
     dists = []
     for i in range(len(clouds)):
         cloud = clouds[i]
         for j in range(i + 1, len(clouds)):
             test_cloud = clouds[j]
-            min_dist = calc_min_dist(cloud, test_cloud)
-            dists.append(min_dist)
+            new_dists = calc_dists(cloud, test_cloud)
+            dists.extend(new_dists)
     return dists
 
 
 def show_cloud_field(clouds, dists):
-    plt.figure(1)
-    plt.clf()
-    print(len(clouds))
-    for cloud in clouds:
-        print(cloud)
-        plt.plot(cloud.x, cloud.y, 'bo')
+    if False:
+        plt.figure(1)
+        plt.clf()
+        print(len(clouds))
+        for cloud in clouds:
+            print(cloud)
+            plt.plot(cloud.x, cloud.y, 'bo')
 
-    plt.xlim((0, LX))
-    plt.ylim((0, LY))
-    plt.pause(0.01)
+        plt.xlim((0, LX))
+        plt.ylim((0, LY))
+        plt.pause(0.01)
 
     plt.figure(2)
     plt.clf()
-    n, bins, patch = plt.hist(dists, LY)
+    n, bins, patch = plt.hist(dists, 100)
     plt.pause(0.01)
 
+    print(len(dists))
     plt.figure(3)
-    plt.clf()
+    #plt.clf()
     areas = np.pi * (bins[1:]**2 - bins[:-1]**2)
     plt.plot(bins[1:], n / areas)
+    plt.xlim((0, 128000))
     plt.pause(0.01)
 
 
-def create_clouds(clouds, mu=3):
-    #clouds = []
+def create_clouds(clouds, mu=3, mode='normal'):
+    if mode not in ['normal', 'enhance', 'inhibit']:
+        raise Exception(mode)
+
     n_cloud = sp.random.poisson(mu)
-    for i in range(n_cloud):
+    if len(clouds) and n_cloud and mode == 'enhance':
+        parent_cloud = clouds[np.random.randint(0, len(clouds))]
+        x = parent_cloud.x + np.random.random() * MIN_SEP
+        y = parent_cloud.y + np.random.random() * MIN_SEP
+        max_age = 3
+        cloud = Cloud(x, y, 0, max_age)
+        n_cloud -= 1
+        clouds.append(cloud)
+
+    while n_cloud:
         #print(i)
         x = np.random.random() * LX
         y = np.random.random() * LY
         max_age = 3
         cloud = Cloud(x, y, 0, max_age)
-        too_close = False
+        suppress = False
+
         for test_cloud in clouds:
             #print(test_cloud)
-            min_dist = calc_min_dist(cloud, test_cloud)
-            if min_dist < MIN_SEP:
-                if min_dist / MIN_SEP < np.random.random():
-                    too_close = True
-                    break
-        if too_close:
+            dists = calc_dists(cloud, test_cloud)
+            min_dist = min(dists)
+            if mode == 'inhibit':
+                if min_dist < MIN_SEP:
+                    if min_dist / MIN_SEP < np.random.random():
+                        suppress = True
+                        break
+        if suppress:
             continue
         clouds.append(cloud)
+        n_cloud -= 1
     return clouds
 
 
-def main(nt=100, mu=3.):
+def main(nt=100, mu=3., mode='normal'):
     clouds = []
     dists = []
+    total_clouds = 0
     for time in range(nt):
         if time % 1000 == 0:
             print(time)
@@ -98,14 +119,21 @@ def main(nt=100, mu=3.):
             if cloud.age > cloud.max_age:
                 # print('Killing cloud')
                 clouds.remove(cloud)
-        clouds = create_clouds(clouds, mu)
+            else:
+                cloud.x = cloud.x + np.random.random() * 1000
+                cloud.y = cloud.y + np.random.random() * 1000
+
+        clouds = create_clouds(clouds, mu, mode)
+        total_clouds += len(clouds)
         new_dists = calc_cloud_stats(clouds)
         # show_cloud_field(clouds, new_dists)
         dists.extend(new_dists)
+    mean_clouds = total_clouds/nt
+    print(mean_clouds)
     show_cloud_field(clouds, dists)
     return dists
 
 
 if __name__ == '__main__':
     plt.ion()
-    dists = main(int(sys.argv[1]), float(sys.argv[2]))
+    dists = main(int(sys.argv[1]), float(sys.argv[2]), sys.argv[3])
