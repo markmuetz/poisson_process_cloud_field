@@ -42,7 +42,7 @@ def calc_cloud_stats(clouds):
     return dists
 
 
-def show_cloud_field(clouds, dists):
+def show_cloud_field(nt, mean_clouds, clouds, dists):
     if False:
         plt.figure(1)
         plt.clf()
@@ -59,14 +59,21 @@ def show_cloud_field(clouds, dists):
     plt.clf()
     n, bins, patch = plt.hist(dists, 100)
     plt.pause(0.01)
+    rho_cloud = mean_clouds / (LX * LY)
 
     print(len(dists))
     plt.figure(3)
     #plt.clf()
     areas = np.pi * (bins[1:]**2 - bins[:-1]**2)
-    plt.plot(bins[1:], n / areas)
-    plt.xlim((0, 128000))
+    cloud_densities = n / areas
+    imax = np.argmax(bins[1:] > (LX / 2))
+    mean_density = n[:imax].sum() / (np.pi * bins[imax]**2)
+    xpoints = (bins[:-1] + bins[1:]) / 2
+    plt.plot(xpoints, cloud_densities / mean_density)
+    plt.xlim((0, LX))
     plt.pause(0.01)
+    return cloud_densities, areas, bins
+
 
 
 def create_clouds(clouds, mu=3, mode='normal'):
@@ -119,9 +126,9 @@ def main(nt=100, mu=3., mode='normal'):
             if cloud.age > cloud.max_age:
                 # print('Killing cloud')
                 clouds.remove(cloud)
-            else:
-                cloud.x = cloud.x + np.random.random() * 1000
-                cloud.y = cloud.y + np.random.random() * 1000
+            #else:
+            #    cloud.x = cloud.x + np.random.random() * 1000
+            #    cloud.y = cloud.y + np.random.random() * 1000
 
         clouds = create_clouds(clouds, mu, mode)
         total_clouds += len(clouds)
@@ -130,10 +137,10 @@ def main(nt=100, mu=3., mode='normal'):
         dists.extend(new_dists)
     mean_clouds = total_clouds/nt
     print(mean_clouds)
-    show_cloud_field(clouds, dists)
-    return dists
+    cloud_densities, areas, bins = show_cloud_field(nt, mean_clouds, clouds, dists)
+    return dists, cloud_densities, areas, bins 
 
 
 if __name__ == '__main__':
     plt.ion()
-    dists = main(int(sys.argv[1]), float(sys.argv[2]), sys.argv[3])
+    dists, cloud_densities, areas, bins  = main(int(sys.argv[1]), float(sys.argv[2]), sys.argv[3])
