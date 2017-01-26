@@ -57,7 +57,7 @@ def show_cloud_field(nt, mean_clouds, clouds, dists):
 
     plt.figure(2)
     plt.clf()
-    n, bins, patch = plt.hist(dists, 100)
+    n, bins, patch = plt.hist(dists, 1000)
     plt.pause(0.01)
     rho_cloud = mean_clouds / (LX * LY)
 
@@ -70,7 +70,7 @@ def show_cloud_field(nt, mean_clouds, clouds, dists):
     mean_density = n[:imax].sum() / (np.pi * bins[imax]**2)
     xpoints = (bins[:-1] + bins[1:]) / 2
     plt.plot(xpoints, cloud_densities / mean_density)
-    plt.xlim((0, LX))
+    plt.xlim((0, LX / 2.))
     plt.pause(0.01)
     return cloud_densities, areas, bins
 
