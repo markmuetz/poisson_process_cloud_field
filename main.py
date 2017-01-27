@@ -1,4 +1,5 @@
 from __future__ import division
+import os
 import sys
 from collections import namedtuple
 
@@ -42,19 +43,22 @@ def calc_cloud_stats(clouds):
     return dists
 
 
-def show_cloud_field(nt, mean_clouds, clouds, dists):
-    if False:
-        plt.figure(1)
-        plt.clf()
-        print(len(clouds))
-        for cloud in clouds:
-            print(cloud)
-            plt.plot(cloud.x, cloud.y, 'bo')
+def plot_cloud_field(clouds):
+    plt.figure(1)
+    plt.clf()
+    print(len(clouds))
+    for cloud in clouds:
+        print(cloud)
+        plt.plot(cloud.x / 1000, cloud.y / 1000, 'kx')
 
-        plt.xlim((0, LX))
-        plt.ylim((0, LY))
-        plt.pause(0.01)
+    plt.xlabel('(km)')
+    plt.ylabel('(km)')
 
+    plt.xlim((0, 256))
+    plt.ylim((0, 256))
+    plt.pause(0.01)
+
+def show_cloud_field(mode, nt, mean_clouds, clouds, dists):
     plt.figure(2)
     plt.clf()
     n, bins, patch = plt.hist(dists, 1000)
@@ -69,8 +73,10 @@ def show_cloud_field(nt, mean_clouds, clouds, dists):
     imax = np.argmax(bins[1:] > (LX / 2))
     mean_density = n[:imax].sum() / (np.pi * bins[imax]**2)
     xpoints = (bins[:-1] + bins[1:]) / 2
-    plt.plot(xpoints, cloud_densities / mean_density)
-    plt.xlim((0, LX / 2.))
+    plt.plot(xpoints / 1000, cloud_densities / mean_density, label=mode)
+    plt.xlim((0, 60))
+    plt.xlabel('Distance (km)')
+    plt.ylabel('Normalized cloud number density')
     plt.pause(0.01)
     return cloud_densities, areas, bins
 
@@ -137,10 +143,26 @@ def main(nt=100, mu=3., mode='normal'):
         dists.extend(new_dists)
     mean_clouds = total_clouds/nt
     print(mean_clouds)
-    cloud_densities, areas, bins = show_cloud_field(nt, mean_clouds, clouds, dists)
-    return dists, cloud_densities, areas, bins 
+    cloud_densities, areas, bins = show_cloud_field(mode, nt, mean_clouds, clouds, dists)
+    plt.legend(loc='upper right')
+    plt.ylim((0, 3))
+    return clouds
 
 
 if __name__ == '__main__':
-    plt.ion()
-    dists, cloud_densities, areas, bins  = main(int(sys.argv[1]), float(sys.argv[2]), sys.argv[3])
+    #plt.ion()
+    #plt.clf()
+    basedir = '/home/markmuetz/Dropbox/PhD/Presentations/2017-02-01_Quo_Vadis/Figures'
+
+    clouds = main(2000, 3, 'normal')
+    plt.savefig(os.path.join(basedir, 'synth_clouds_normal.png'))
+    plot_cloud_field(clouds)
+    plt.savefig(os.path.join(basedir, 'synth_clouds.png'))
+
+    main(2000, 3, 'inhibit')
+    plt.savefig(os.path.join(basedir, 'synth_clouds_normal_inhibit.png'))
+
+    main(2000, 3, 'enhance')
+    plt.savefig(os.path.join(basedir, 'synth_clouds_normal_inhibit_enhance.png'))
+
+    #dists, cloud_densities, areas, bins  = main(int(sys.argv[1]), float(sys.argv[2]), sys.argv[3])
